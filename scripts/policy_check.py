@@ -67,8 +67,19 @@ def _same_role(a: str, b: str) -> bool:
 
 
 def check_create(g: dict, *, agent: str, policies: list[str], ttl_hours: int,
-                 existing_role: str, caller_arn: str, parent: str) -> list[str]:
+                 existing_role: str, caller_arn: str, parent: str, policy_arns: list[str] | None = None) -> list[str]:
     reasons: list[str] = []
+    if policy_arns is not None:
+        # Terraform attaches ARNs; BalkanID reviews names. They must be the same set, or the
+        # approval would not cover what is actually attached.
+        arn_names = sorted(a.rsplit("/", 1)[-1] for a in policy_arns)
+        if arn_names != sorted(policies):
+            reasons.append(
+                f"AGENT_POLICY_ARNS {arn_names} must name exactly the reviewed AGENT_POLICY_NAMES {sorted(policies)}"
+            )
+        for arn in policy_arns:
+            if not arn.startswith("arn:aws:iam::"):
+                reasons.append(f"{arn!r} is not an IAM policy ARN")
     if not re.match(g.get("agent_name_pattern", "^.+$"), agent or ""):
         reasons.append(f"agent name {agent!r} does not match {g.get('agent_name_pattern')}")
 
@@ -139,9 +150,11 @@ def main(argv: list[str] | None = None) -> int:
         ttl = int(api.env_optional("AGENT_TTL_HOURS", str(g.get("ttl_hours", {}).get("default", 8))))
         existing = api.env_optional("EXISTING_EXECUTION_ROLE_ARN")
         caller = "" if args.no_caller_check or not existing else caller_role_arn()
+        arns = [a for a in re.split(r"[,\s]+", api.env_optional("AGENT_POLICY_ARNS")) if a]
         reasons = check_create(
             g, agent=agent, policies=policy_names(api.env_optional("AGENT_POLICY_NAMES")),
             ttl_hours=ttl, existing_role=existing, caller_arn=caller, parent=api.env_optional("PARENT_AGENT"),
+            policy_arns=arns,
         )
         decision = {"check": "create", "agent": agent, "ttl_hours": ttl, "expires_at": expires_at(ttl)}
 

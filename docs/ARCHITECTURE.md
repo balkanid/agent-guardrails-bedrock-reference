@@ -31,7 +31,7 @@ flowchart TB
 
 | Layer | Where | What it stops |
 |---|---|---|
-| Pre-check | `policies/guardrails.json`, `policy_check.py` | Broad managed policies, reused developer/admin/human roles, the caller's own role, excessive TTLs, bad names, oversize grants. Runs before any API call. |
+| Pre-check | `policies/guardrails.json`, `policy_check.py` | Broad managed policies, attached policy ARNs that differ from the reviewed names, reused developer/admin/human roles, the caller's own role, excessive TTLs, bad names, oversize grants. Runs before any API call. |
 | BalkanID policy engine | Request policies ([BALKANID_POLICIES.md](../policies/BALKANID_POLICIES.md)) | The same rules for requests raised any other way; routing of sensitive grants to the right approver; auto-approval of low-risk requests. |
 | Approval | `AGENT_ACCESS`, `CREATE_SERVICE_ACCOUNT` | Agents without a named owner, purpose and expiry. Fails closed on deny or timeout. |
 | Step-up | Sensitive insight on grant policies | Approving access to secrets, production or customer data without a fresh MFA check. |
@@ -61,7 +61,7 @@ flowchart TB
 
 ### Teardown
 
-The reaper lists roles under `/balkanid-agents/`, reads `balkanid-expires-at`, and destroys every expired agent, every child of an expired parent, and any agent role missing an expiry tag. Children go first so a parent's boundary is never removed from under them. A final sync updates BalkanID.
+The reaper lists roles under `/balkanid-agents/`, reads `balkanid-expires-at`, and destroys every expired agent, every descendant of an expired agent, and any agent role missing an expiry tag. The deepest descendants go first so a parent's boundary is never removed from under them. After each destroy it confirms the role is gone, and a final sync updates BalkanID.
 
 ## Threat model
 

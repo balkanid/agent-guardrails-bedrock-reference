@@ -52,7 +52,6 @@
       "Sid": "IamRolesUnderAgentPath",
       "Effect": "Allow",
       "Action": [
-        "iam:CreateRole",
         "iam:GetRole",
         "iam:UpdateRole",
         "iam:UpdateAssumeRolePolicy",
@@ -67,11 +66,23 @@
         "iam:ListRolePolicies",
         "iam:ListAttachedRolePolicies",
         "iam:ListInstanceProfilesForRole",
-        "iam:PutRolePermissionsBoundary",
-        "iam:DeleteRolePermissionsBoundary",
         "iam:ListRoleTags"
       ],
       "Resource": "arn:aws:iam::*:role/balkanid-agents/*"
+    },
+    {
+      "Sid": "CreateAgentRolesOnlyWithAnAgentBoundary",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:PutRolePermissionsBoundary"
+      ],
+      "Resource": "arn:aws:iam::*:role/balkanid-agents/*",
+      "Condition": {
+        "ArnLike": {
+          "iam:PermissionsBoundary": "arn:aws:iam::*:policy/balkanid-agents/agent-boundary-*"
+        }
+      }
     },
     {
       "Sid": "BoundaryAndGrantPolicies",

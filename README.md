@@ -123,7 +123,10 @@ python3 -m unittest discover -s tests -v
 
 ## Notes
 
-- The reaper treats an agent role with no `balkanid-expires-at` tag as expired. Only this workflow creates roles under `/balkanid-agents/`, and it always sets the tag.
+- The policies Terraform attaches (`AGENT_POLICY_ARNS`) must name exactly the policies BalkanID reviewed (`AGENT_POLICY_NAMES`); otherwise `policy_check.py` refuses the run.
+- The reaper treats an agent role with no `balkanid-expires-at` tag as expired. Only this workflow creates roles under `/balkanid-agents/`, and it always sets the tag. It confirms each role is really gone after `terraform destroy`, and fails loudly if it is not (for example, when no remote backend is configured).
+- Teardown is recorded in BalkanID through `syncIntegration`; this reference does not raise a `DELETE_SERVICE_ACCOUNT` request, so expiry is not blocked on an approver.
+- The workflows use static AWS keys for simplicity. In production, use GitHub OIDC with `aws-actions/configure-aws-credentials` and a role scoped to `aws/agent-provisioner-iam-policy.json`.
 - This repository is a **reference**. Review the boundary, the denied policy list and the grant policies against your environment before production use.
 
 ## Security

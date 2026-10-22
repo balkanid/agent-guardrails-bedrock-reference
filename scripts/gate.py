@@ -16,6 +16,10 @@ from policy_check import expires_at, load_guardrails, policy_names
 from service_account_gate import ROLE_PATH_PREFIX, role_name_for
 
 
+def purpose(agent: str) -> str:
+    return api.env_optional("AGENT_PURPOSE") or f"Developer agent {agent}"
+
+
 def build_input(agent: str, owner: str, expiration: str) -> dict:
     account = api.env_optional("AWS_ACCOUNT_ID")
     role_arn = f"arn:aws:iam::{account}:role{ROLE_PATH_PREFIX}{role_name_for(agent)}" if account else ""
@@ -34,7 +38,7 @@ def build_input(agent: str, owner: str, expiration: str) -> dict:
         "action": "CREATE",
         "name": agent,
         "agentType": "bedrock-agentcore",
-        "description": api.env_optional("AGENT_PURPOSE", f"Developer agent {agent}"),
+        "description": purpose(agent),
         "metadata": metadata,
     }
     integration = api.env_optional("INTEGRATION_ID")
@@ -45,7 +49,7 @@ def build_input(agent: str, owner: str, expiration: str) -> dict:
     return {
         "requestType": "AGENT_ACCESS",
         "employeeEmail": owner,
-        "reason": api.env_optional("AGENT_PURPOSE", f"Developer agent {agent}"),
+        "reason": purpose(agent),
         "expirationDate": expiration,
         "runAsync": False,
         "payload": {"agentAccess": agent_access},

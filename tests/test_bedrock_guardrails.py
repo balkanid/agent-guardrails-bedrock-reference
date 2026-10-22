@@ -75,6 +75,18 @@ class PolicyCheckTests(unittest.TestCase):
         self.assertTrue(self.check(agent="Bad_Name"))
         self.assertTrue(self.check(parent="payments-helper"))
 
+    def test_attached_arns_must_match_reviewed_names(self):
+        ok = self.check(policies=["AmazonBedrockLimitedAccess"],
+                        policy_arns=["arn:aws:iam::aws:policy/AmazonBedrockLimitedAccess"])
+        self.assertEqual(ok, [])
+        sneaky = self.check(policies=["AmazonBedrockLimitedAccess"],
+                            policy_arns=["arn:aws:iam::aws:policy/AdministratorAccess"])
+        self.assertTrue(any("must name exactly" in r for r in sneaky))
+        extra = self.check(policies=["AmazonBedrockLimitedAccess"],
+                           policy_arns=["arn:aws:iam::aws:policy/AmazonBedrockLimitedAccess",
+                                        "arn:aws:iam::aws:policy/ReadOnlyAccess"])
+        self.assertTrue(extra)
+
     def test_grant_limits(self):
         self.assertEqual(policy_check.check_grant(G, grant="BalkanIDAgentSecretsRead", minutes=30), [])
         self.assertTrue(policy_check.check_grant(G, grant="BalkanIDAgentSecretsRead", minutes=600))
@@ -164,6 +176,8 @@ class ReaperTests(unittest.TestCase):
             "agent-child": {"balkanid-agent": "child", "balkanid-expires-at": "2099-01-01T00:00:00Z", "balkanid-parent": "old"},
             "agent-live": {"balkanid-agent": "live", "balkanid-expires-at": "2099-01-01T00:00:00Z"},
             "agent-untagged": {"balkanid-agent": "untagged"},
+            "agent-grandchild": {"balkanid-agent": "grandchild", "balkanid-expires-at": "2099-01-01T00:00:00Z",
+                                 "balkanid-parent": "child"},
         }
         script = self.tmp / "aws"
         script.write_text(
@@ -175,6 +189,10 @@ class ReaperTests(unittest.TestCase):
             "elif a[:2] == ['iam', 'list-role-tags']:\n"
             "    t = roles[a[a.index('--role-name') + 1]]\n"
             "    print(json.dumps({'Tags': [{'Key': k, 'Value': v} for k, v in t.items()]}))\n"
+            "elif a[:2] == ['iam', 'get-role']:\n"
+            "    name = a[a.index('--role-name') + 1]\n"
+            "    if name == 'agent-live':\n        print('{}')\n"
+            "    else:\n        sys.stderr.write('An error occurred (NoSuchEntity)')\n        sys.exit(254)\n"
             "else:\n    sys.exit(3)\n"
         )
         script.chmod(script.stat().st_mode | stat.S_IEXEC)
@@ -185,9 +203,14 @@ class ReaperTests(unittest.TestCase):
     def test_expired_children_and_untagged(self):
         due = reap_expired.expired(reap_expired.agent_roles(), dt.datetime(2026, 10, 22, tzinfo=dt.timezone.utc))
         names = [d["agent"] for d in due]
-        self.assertEqual(set(names), {"old", "child", "untagged"})
-        self.assertLess(names.index("child"), names.index("old"))  # children reaped first
+        self.assertEqual(set(names), {"old", "child", "grandchild", "untagged"})
+        self.assertLess(names.index("grandchild"), names.index("child"))  # deepest first
+        self.assertLess(names.index("child"), names.index("old"))
         self.assertEqual({d["agent"]: d["reason"] for d in due}["untagged"], "missing expiry")
+
+    def test_role_exists_distinguishes_gone_from_present(self):
+        self.assertTrue(reap_expired.role_exists("agent-live"))
+        self.assertFalse(reap_expired.role_exists("agent-old"))
 
 
 if __name__ == "__main__":

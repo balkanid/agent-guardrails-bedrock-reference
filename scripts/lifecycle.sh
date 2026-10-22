@@ -84,6 +84,13 @@ PY
 
   destroy)
     require_agent
+    if [[ -z "${PARENT_AGENT:-}" ]] && command -v aws >/dev/null 2>&1; then
+      # A subagent's config references its parent's boundary; recover the parent from the role tag.
+      PARENT_AGENT="$(aws iam list-role-tags --role-name "agent-$agent" \
+        --query "Tags[?Key=='balkanid-parent'].Value | [0]" --output text 2>/dev/null || true)"
+      [[ "$PARENT_AGENT" == "None" ]] && PARENT_AGENT=""
+      export PARENT_AGENT
+    fi
     select_workspace
     echo "==> Terraform destroy (workspace $agent)" >&2
     tf destroy -input=false -auto-approve \

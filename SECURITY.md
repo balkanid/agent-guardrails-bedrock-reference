@@ -18,7 +18,7 @@ For non-security bugs or documentation fixes, use GitHub Issues.
 |---|---|
 | Git | Never commit `.env`, `*.tfvars` or Terraform state. |
 | GitHub Actions | Store BalkanID and AWS credentials as **secrets** on the `agent-lifecycle` environment and require reviewers on it for production accounts. |
-| AWS | Scope the Terraform principal to [`aws/agent-provisioner-iam-policy.json`](aws/agent-provisioner-iam-policy.json), which can only manage roles and policies under `/balkanid-agents/`. |
+| AWS | Scope the Terraform principal to [`aws/agent-provisioner-iam-policy.json`](aws/agent-provisioner-iam-policy.json), which can only manage roles and policies under `/balkanid-agents/`, can only create roles that carry an agent permissions boundary, and cannot remove a boundary. |
 
 ## What the guardrails guarantee
 

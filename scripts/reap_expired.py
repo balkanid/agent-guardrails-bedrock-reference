@@ -59,12 +59,38 @@ def expired(agents: list[dict], now: dt.datetime) -> list[dict]:
             when = now
         if when <= now:
             due[a["agent"]] = {**a, "reason": "expired" if a["expires_at"] else "missing expiry"}
-    # A child never outlives its parent.
-    for a in agents:
-        if a["parent"] and a["parent"] in due and a["agent"] not in due:
-            due[a["agent"]] = {**a, "reason": f"parent {a['parent']} expired"}
-    # Children first, so a parent's boundary is not deleted while a child still uses it.
-    return sorted(due.values(), key=lambda a: 0 if a["parent"] else 1)
+    # A descendant never outlives its ancestor (repeat until no change, for any depth).
+    changed = True
+    while changed:
+        changed = False
+        for a in agents:
+            if a["parent"] and a["parent"] in due and a["agent"] not in due:
+                due[a["agent"]] = {**a, "reason": f"parent {a['parent']} expired"}
+                changed = True
+
+    by_name = {a["agent"]: a for a in agents}
+
+    def depth(a: dict) -> int:
+        d, seen, cur = 0, set(), a
+        while cur.get("parent") and cur["parent"] in by_name and cur["agent"] not in seen:
+            seen.add(cur["agent"])
+            cur = by_name[cur["parent"]]
+            d += 1
+        return d
+
+    # Deepest first, so a parent's boundary is never deleted while a descendant still uses it.
+    return sorted(due.values(), key=lambda a: -depth(a))
+
+
+def role_exists(role_name: str) -> bool:
+    aws = api.env_optional("AWS_CLI") or shutil.which("aws")
+    proc = subprocess.run([aws, "iam", "get-role", "--role-name", role_name, "--output", "json"],
+                          capture_output=True, text=True, timeout=60)
+    if proc.returncode == 0:
+        return True
+    if "NoSuchEntity" in proc.stderr:
+        return False
+    raise SystemExit(f"could not confirm deletion of {role_name}: {proc.stderr.strip()[:300]}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -82,7 +108,14 @@ def main(argv: list[str] | None = None) -> int:
         api.log_stderr(f"reaping agent {a['agent']} ({a['reason']})")
         env = {**os.environ, "PARENT_AGENT": a["parent"]}
         proc = subprocess.run([str(ROOT / "scripts" / "lifecycle.sh"), "destroy", a["agent"]], env=env)
-        failures += proc.returncode != 0
+        if proc.returncode != 0:
+            failures += 1
+            continue
+        # terraform destroy exits 0 even when it had no state for the agent (for example, no remote
+        # backend). Only a role that is actually gone counts as reaped.
+        if role_exists(a["role"]):
+            api.log_stderr(f"agent {a['agent']}: role {a['role']} still exists after destroy; check the Terraform backend")
+            failures += 1
     return 1 if failures else 0
 
 

@@ -83,6 +83,13 @@ class LifecycleScriptTests(unittest.TestCase):
         self.assertEqual(self.mock.created, [])
         self.assertEqual(self.tf_calls(), [])
 
+    def test_apply_refuses_unreviewed_policy_arn(self):
+        proc = self.run_sh("apply", "payments-helper",
+                           AGENT_POLICY_ARNS="arn:aws:iam::aws:policy/AdministratorAccess")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(self.mock.created, [])
+        self.assertEqual(self.tf_calls(), [])
+
     def test_denied_agent_never_reaches_terraform(self):
         self.mock.next_status = "denied"
         proc = self.run_sh("apply", "payments-helper")

@@ -40,7 +40,7 @@ def run(main, argv=None):
 
 class PolicyCheckTests(unittest.TestCase):
     def check(self, **kw):
-        base = dict(agent="payments-helper", policies=[], ttl_hours=8, existing_role="", caller_arn="", parent="")
+        base = dict(agent="dev-assistant", policies=[], ttl_hours=8, existing_role="", caller_arn="", parent="")
         base.update(kw)
         return policy_check.check_create(G, **base)
 
@@ -73,7 +73,7 @@ class PolicyCheckTests(unittest.TestCase):
 
     def test_bad_name_and_self_parent(self):
         self.assertTrue(self.check(agent="Bad_Name"))
-        self.assertTrue(self.check(parent="payments-helper"))
+        self.assertTrue(self.check(parent="dev-assistant"))
 
     def test_attached_arns_must_match_reviewed_names(self):
         ok = self.check(policies=["AmazonBedrockLimitedAccess"],
@@ -93,7 +93,7 @@ class PolicyCheckTests(unittest.TestCase):
         self.assertTrue(policy_check.check_grant(G, grant="AdministratorAccess", minutes=5))
 
     def test_cli_outputs_decision(self):
-        env = {"BALKANID_SKIP_DOTENV": "1", "AGENT_NAME": "payments-helper", "AGENT_POLICY_NAMES": "AdministratorAccess",
+        env = {"BALKANID_SKIP_DOTENV": "1", "AGENT_NAME": "dev-assistant", "AGENT_POLICY_NAMES": "AdministratorAccess",
                "AGENT_TTL_HOURS": "8", "EXISTING_EXECUTION_ROLE_ARN": ""}
         with mock.patch.dict(os.environ, env):
             code, out, _ = run(policy_check.main, ["--no-caller-check"])
@@ -108,7 +108,7 @@ class ApiFlowTests(unittest.TestCase):
         env = {
             "BALKANID_SKIP_DOTENV": "1", "BALKANID_PUBLIC_API_URL": self.mock.url, "API_KEY_ID": "test-key",
             "API_KEY_SECRET": "s", "BALKANID_AGENT_OWNER_EMAIL": "owner@example.com", "INTEGRATION_ID": "int-aws",
-            "AWS_ACCOUNT_ID": "123456789012", "AGENT_NAME": "payments-helper", "AGENT_EXPIRES_AT": "2026-10-22T18:00:00Z",
+            "AWS_ACCOUNT_ID": "123456789012", "AGENT_NAME": "dev-assistant", "AGENT_EXPIRES_AT": "2026-10-22T18:00:00Z",
             "AGENT_POLICY_NAMES": "AmazonBedrockLimitedAccess", "POLL_SECONDS": "1", "POLL_TIMEOUT_SECONDS": "5",
             "GQL_MAX_RETRIES": "1", "PARENT_AGENT": "",
         }
@@ -124,17 +124,17 @@ class ApiFlowTests(unittest.TestCase):
         sent = self.mock.created[0]
         self.assertEqual(sent["requestType"], "CREATE_SERVICE_ACCOUNT")
         self.assertEqual(sent["expirationDate"], "2026-10-22T18:00:00Z")
-        self.assertEqual(sent["payload"]["entity"]["name"], "agent-payments-helper")
+        self.assertEqual(sent["payload"]["entity"]["name"], "agent-dev-assistant")
         self.assertEqual(sent["payload"]["entity"]["scimPayload"]["grants"][0]["source_name"], "AmazonBedrockLimitedAccess")
 
     def test_agent_gate_records_no_inheritance_and_parent(self):
-        os.environ["PARENT_AGENT"] = "payments-orchestrator"
+        os.environ["PARENT_AGENT"] = "dev-orchestrator"
         code, out, _ = run(gate.main)
         self.assertEqual(code, 0)
         aa = self.mock.created[0]["payload"]["agentAccess"]
-        self.assertEqual(aa["intendedIamRoleArn"], "arn:aws:iam::123456789012:role/balkanid-agents/agent-payments-helper")
+        self.assertEqual(aa["intendedIamRoleArn"], "arn:aws:iam::123456789012:role/balkanid-agents/agent-dev-assistant")
         self.assertFalse(aa["metadata"]["inherits_creator_permissions"])
-        self.assertEqual(aa["metadata"]["parent_agent"], "payments-orchestrator")
+        self.assertEqual(aa["metadata"]["parent_agent"], "dev-orchestrator")
 
     def test_agent_gate_denied_fails_closed(self):
         self.mock.next_status = "denied"
@@ -143,9 +143,9 @@ class ApiFlowTests(unittest.TestCase):
         self.assertEqual(json.loads(out)["status"], "denied")
 
     def test_sensitive_grant_flow(self):
-        self.mock.identities["agent-payments-helper"] = {"id": "ident-7", "sourceId": "", "handle": "agent-payments-helper",
+        self.mock.identities["agent-dev-assistant"] = {"id": "ident-7", "sourceId": "", "handle": "agent-dev-assistant",
                                                         "sourceType": "aws service role", "fullName": ""}
-        code, out, err = run(request_sensitive_access.main, ["--agent", "payments-helper", "--grant",
+        code, out, err = run(request_sensitive_access.main, ["--agent", "dev-assistant", "--grant",
                                                              "BalkanIDAgentSecretsRead", "--minutes", "30", "--reason", "rotate"])
         self.assertEqual(code, 0, err)
         sent = self.mock.created[0]
@@ -154,15 +154,15 @@ class ApiFlowTests(unittest.TestCase):
         self.assertEqual(sent["payload"]["entity"]["entity"], "ident-7")
 
     def test_sensitive_grant_over_limit_never_reaches_balkanid(self):
-        code, _, _ = run(request_sensitive_access.main, ["--agent", "payments-helper", "--grant",
+        code, _, _ = run(request_sensitive_access.main, ["--agent", "dev-assistant", "--grant",
                                                          "BalkanIDAgentSecretsRead", "--minutes", "500", "--reason", "x"])
         self.assertEqual(code, 1)
         self.assertEqual(self.mock.calls, 0)
 
     def test_sensitive_grant_step_up(self):
-        self.mock.identities["agent-payments-helper"] = {"id": "ident-7"}
+        self.mock.identities["agent-dev-assistant"] = {"id": "ident-7"}
         self.mock.step_up_required = True
-        code, out, _ = run(request_sensitive_access.main, ["--agent", "payments-helper", "--grant",
+        code, out, _ = run(request_sensitive_access.main, ["--agent", "dev-assistant", "--grant",
                                                            "BalkanIDAgentSecretsRead", "--minutes", "10", "--reason", "x"])
         self.assertEqual(code, 1)
         self.assertEqual(json.loads(out)["status"], "step_up_required")

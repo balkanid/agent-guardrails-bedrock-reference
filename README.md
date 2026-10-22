@@ -18,14 +18,14 @@ Builds on [agent-lifecycle-terraform-reference](https://github.com/balkanid/agen
 ## Flow
 
 ```
-scripts/lifecycle.sh apply payments-helper
+scripts/lifecycle.sh apply dev-assistant
   policy_check.py            auto-deny: admin policies, reused roles, caller's own role, TTL > max
-  service_account_gate.py    BalkanID CREATE_SERVICE_ACCOUNT  agent-payments-helper, expiry      -> approved
+  service_account_gate.py    BalkanID CREATE_SERVICE_ACCOUNT  agent-dev-assistant, expiry      -> approved
   gate.py                    BalkanID AGENT_ACCESS  owner, requester, purpose, parent, expiry    -> approved
   terraform (workspace)      role + permissions boundary + AgentCore harness, tagged owner/expiry
   trigger_sync.py            BalkanID discovers agent and role
 
-scripts/lifecycle.sh grant payments-helper BalkanIDAgentSecretsRead 30 "rotate staging creds"
+scripts/lifecycle.sh grant dev-assistant BalkanIDAgentSecretsRead 30 "rotate staging creds"
   policy_check.py --grant    grant exists and is within its maximum length
   request_sensitive_access   BalkanID SERVICE_ACCOUNT_ASSIGNMENT, 30 minutes -> approver step-up MFA -> attached
 
@@ -77,15 +77,15 @@ cp env.example .env
 python3 scripts/preflight.py
 (cd terraform/grant-policies && terraform init && terraform apply)   # once per account
 
-scripts/lifecycle.sh apply payments-helper
-scripts/lifecycle.sh grant payments-helper BalkanIDAgentSecretsRead 30 "rotate staging DB credentials"
-scripts/lifecycle.sh destroy payments-helper
+scripts/lifecycle.sh apply dev-assistant
+scripts/lifecycle.sh grant dev-assistant BalkanIDAgentSecretsRead 30 "rotate staging DB credentials"
+scripts/lifecycle.sh destroy dev-assistant
 ```
 
 Subagent:
 
 ```bash
-PARENT_AGENT=payments-helper scripts/lifecycle.sh apply payments-log-reader
+PARENT_AGENT=dev-assistant scripts/lifecycle.sh apply log-reader
 ```
 
 See the guardrails refuse a request:

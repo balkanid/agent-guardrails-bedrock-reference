@@ -6,7 +6,7 @@ sensitive grant policies (terraform/grant-policies) for a limited number of minu
 those policies sensitive in BalkanID (custom insight with "Is Sensitive") so approvers must
 complete step-up MFA. BalkanID attaches the policy on approval and removes it at expiry.
 
-  python3 scripts/request_sensitive_access.py --agent payments-helper \
+  python3 scripts/request_sensitive_access.py --agent dev-assistant \
       --grant BalkanIDAgentSecretsRead --minutes 30 --reason "rotate staging DB creds"
 
 Exit 0 when approved (and, with --wait-provisioning, attached). Fails closed otherwise.

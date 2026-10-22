@@ -66,25 +66,25 @@ class LifecycleScriptTests(unittest.TestCase):
         return [json.loads(line) for line in self.log.read_text().splitlines()]
 
     def test_apply_runs_checks_gates_terraform_sync_in_order(self):
-        proc = self.run_sh("apply", "payments-helper")
+        proc = self.run_sh("apply", "dev-assistant")
         self.assertEqual(proc.returncode, 0, proc.stderr)
         types = [c["requestType"] for c in self.mock.created]
         self.assertEqual(types, ["CREATE_SERVICE_ACCOUNT", "AGENT_ACCESS"])
         self.assertEqual(self.mock.created[0]["expirationDate"], self.mock.created[1]["expirationDate"])
         apply = [c for c in self.tf_calls() if "apply" in c][0]
-        self.assertIn("-var=agent_name=payments-helper", apply)
+        self.assertIn("-var=agent_name=dev-assistant", apply)
         self.assertIn('-var=agent_policy_arns=["arn:aws:iam::aws:policy/AmazonBedrockLimitedAccess"]', apply)
         self.assertIn(f"-var=expires_at={self.mock.created[0]['expirationDate']}", apply)
-        self.assertTrue(any("workspace" in c and "payments-helper" in c for c in self.tf_calls()))
+        self.assertTrue(any("workspace" in c and "dev-assistant" in c for c in self.tf_calls()))
 
     def test_apply_refuses_admin_policy_before_any_request(self):
-        proc = self.run_sh("apply", "payments-helper", AGENT_POLICY_NAMES="AdministratorAccess")
+        proc = self.run_sh("apply", "dev-assistant", AGENT_POLICY_NAMES="AdministratorAccess")
         self.assertNotEqual(proc.returncode, 0)
         self.assertEqual(self.mock.created, [])
         self.assertEqual(self.tf_calls(), [])
 
     def test_apply_refuses_unreviewed_policy_arn(self):
-        proc = self.run_sh("apply", "payments-helper",
+        proc = self.run_sh("apply", "dev-assistant",
                            AGENT_POLICY_ARNS="arn:aws:iam::aws:policy/AdministratorAccess")
         self.assertNotEqual(proc.returncode, 0)
         self.assertEqual(self.mock.created, [])
@@ -92,12 +92,12 @@ class LifecycleScriptTests(unittest.TestCase):
 
     def test_denied_agent_never_reaches_terraform(self):
         self.mock.next_status = "denied"
-        proc = self.run_sh("apply", "payments-helper")
+        proc = self.run_sh("apply", "dev-assistant")
         self.assertNotEqual(proc.returncode, 0)
         self.assertEqual(self.tf_calls(), [])
 
     def test_destroy(self):
-        proc = self.run_sh("destroy", "payments-helper")
+        proc = self.run_sh("destroy", "dev-assistant")
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertTrue(any("destroy" in c for c in self.tf_calls()))
 

@@ -1,0 +1,103 @@
+name: Agent lifecycle
+
+# Developer self-service: request an agent, get it approved in BalkanID, provision it with its
+# own scoped identity, and tear it down. Requires a remote Terraform backend (see
+# terraform/agent/versions.tf) so the scheduled reaper can destroy what this creates.
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: apply, destroy, or grant (time-bound sensitive access)
+        required: true
+        default: apply
+        type: choice
+        options: [apply, destroy, grant]
+      agent_name:
+        description: Agent name (lowercase, hyphens)
+        required: true
+        type: string
+      purpose:
+        description: Why this agent exists (apply)
+        required: false
+        type: string
+      ttl_hours:
+        description: Hours until automatic teardown (apply)
+        required: false
+        default: "8"
+        type: string
+      parent_agent:
+        description: Parent agent, for a subagent (apply)
+        required: false
+        type: string
+      grant_policy:
+        description: Sensitive grant policy (grant)
+        required: false
+        type: choice
+        options: [BalkanIDAgentSecretsRead, BalkanIDAgentProductionReadOnly, BalkanIDAgentCustomerDataRead]
+      grant_minutes:
+        description: Grant length in minutes (grant)
+        required: false
+        default: "30"
+        type: string
+      grant_reason:
+        description: Why the agent needs it (grant)
+        required: false
+        type: string
+
+concurrency:
+  group: agent-${{ inputs.agent_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    name: "${{ inputs.operation }} ${{ inputs.agent_name }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    environment: agent-lifecycle
+    env:
+      BALKANID_PUBLIC_API_URL: ${{ secrets.BALKANID_PUBLIC_API_URL }}
+      API_KEY_ID: ${{ secrets.BALKANID_API_KEY_ID }}
+      API_KEY_SECRET: ${{ secrets.BALKANID_API_KEY_SECRET }}
+      BALKANID_AGENT_OWNER_EMAIL: ${{ secrets.BALKANID_AGENT_OWNER_EMAIL }}
+      INTEGRATION_ID: ${{ secrets.BALKANID_INTEGRATION_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      AGENT_POLICY_NAMES: ${{ vars.AGENT_POLICY_NAMES }}
+      AGENT_POLICY_ARNS: ${{ vars.AGENT_POLICY_ARNS }}
+      AGENT_PURPOSE: ${{ inputs.purpose }}
+      AGENT_TTL_HOURS: ${{ inputs.ttl_hours }}
+      PARENT_AGENT: ${{ inputs.parent_agent }}
+      POLL_SECONDS: "10"
+      POLL_TIMEOUT_SECONDS: "7200"
+      TF_IN_AUTOMATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+          terraform_wrapper: false
+      - name: Preflight
+        run: python3 scripts/preflight.py
+      - name: Run
+        env:
+          OPERATION: ${{ inputs.operation }}
+          AGENT: ${{ inputs.agent_name }}
+          GRANT_POLICY: ${{ inputs.grant_policy }}
+          GRANT_MINUTES: ${{ inputs.grant_minutes }}
+          GRANT_REASON: ${{ inputs.grant_reason }}
+        run: |
+          set -euo pipefail
+          if [ "$OPERATION" = "grant" ]; then
+            scripts/lifecycle.sh grant "$AGENT" "$GRANT_POLICY" "$GRANT_MINUTES" "$GRANT_REASON"
+          else
+            scripts/lifecycle.sh "$OPERATION" "$AGENT"
+          fi

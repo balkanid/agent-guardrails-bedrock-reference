@@ -1,0 +1,44 @@
+name: Agent reaper
+
+# Destroys every agent whose BalkanID-approved expiry has passed, children before parents.
+# Needs the same remote Terraform backend as the lifecycle workflow.
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: agent-reaper
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reap:
+    runs-on: ubuntu-latest
+    environment: agent-lifecycle
+    env:
+      BALKANID_PUBLIC_API_URL: ${{ secrets.BALKANID_PUBLIC_API_URL }}
+      API_KEY_ID: ${{ secrets.BALKANID_API_KEY_ID }}
+      API_KEY_SECRET: ${{ secrets.BALKANID_API_KEY_SECRET }}
+      INTEGRATION_ID: ${{ secrets.BALKANID_INTEGRATION_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      AWS_DEFAULT_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+          terraform_wrapper: false
+      - name: List expired agents
+        run: python3 scripts/reap_expired.py
+      - name: Destroy expired agents
+        run: python3 scripts/reap_expired.py --destroy

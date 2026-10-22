@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "description": "Pre-request guardrails checked by scripts/policy_check.py before anything reaches BalkanID or AWS. Mirror these as auto-deny request policies in BalkanID (see policies/BALKANID_POLICIES.md) so the same rules hold for requests raised any other way.",
+  "agent_name_pattern": "^[a-z0-9][a-z0-9-]{2,40}$",
+  "denied_policies": [
+    "AdministratorAccess",
+    "PowerUserAccess",
+    "IAMFullAccess",
+    "AWSOrganizationsFullAccess",
+    "SecretsManagerReadWrite",
+    "AmazonS3FullAccess",
+    "AmazonDynamoDBFullAccess",
+    "AmazonRDSFullAccess",
+    "AWSLambda_FullAccess",
+    "AmazonEC2FullAccess"
+  ],
+  "denied_execution_role_patterns": [
+    "aws-reserved/sso\\.amazonaws\\.com/",
+    ":user/",
+    "(?i)admin",
+    "(?i)developer",
+    "(?i)poweruser",
+    "OrganizationAccountAccessRole"
+  ],
+  "ttl_hours": { "default": 8, "max": 72 },
+  "sensitive_grants": {
+    "BalkanIDAgentSecretsRead": { "max_minutes": 60 },
+    "BalkanIDAgentProductionReadOnly": { "max_minutes": 120 },
+    "BalkanIDAgentCustomerDataRead": { "max_minutes": 60 }
+  }
+}

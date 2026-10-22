@@ -1,0 +1,126 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BedrockAgentCoreHarnessLifecycle",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore:CreateHarness",
+        "bedrock-agentcore:GetHarness",
+        "bedrock-agentcore:ListHarnesses",
+        "bedrock-agentcore:ListHarnessVersions",
+        "bedrock-agentcore:UpdateHarness",
+        "bedrock-agentcore:DeleteHarness",
+        "bedrock-agentcore:CreateHarnessEndpoint",
+        "bedrock-agentcore:GetHarnessEndpoint",
+        "bedrock-agentcore:ListHarnessEndpoints",
+        "bedrock-agentcore:UpdateHarnessEndpoint",
+        "bedrock-agentcore:DeleteHarnessEndpoint",
+        "bedrock-agentcore:CreateAgentRuntime",
+        "bedrock-agentcore:GetAgentRuntime",
+        "bedrock-agentcore:ListAgentRuntimes",
+        "bedrock-agentcore:UpdateAgentRuntime",
+        "bedrock-agentcore:DeleteAgentRuntime",
+        "bedrock-agentcore:CreateAgentRuntimeEndpoint",
+        "bedrock-agentcore:GetAgentRuntimeEndpoint",
+        "bedrock-agentcore:ListAgentRuntimeEndpoints",
+        "bedrock-agentcore:UpdateAgentRuntimeEndpoint",
+        "bedrock-agentcore:DeleteAgentRuntimeEndpoint",
+        "bedrock-agentcore:CreateMemory",
+        "bedrock-agentcore:GetMemory",
+        "bedrock-agentcore:ListMemories",
+        "bedrock-agentcore:UpdateMemory",
+        "bedrock-agentcore:DeleteMemory",
+        "bedrock-agentcore:CreateWorkloadIdentity",
+        "bedrock-agentcore:GetWorkloadIdentity",
+        "bedrock-agentcore:ListWorkloadIdentities",
+        "bedrock-agentcore:UpdateWorkloadIdentity",
+        "bedrock-agentcore:DeleteWorkloadIdentity",
+        "bedrock-agentcore:TagResource",
+        "bedrock-agentcore:UntagResource",
+        "bedrock-agentcore:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamListRolesForReconciliation",
+      "Effect": "Allow",
+      "Action": "iam:ListRoles",
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamRolesUnderAgentPath",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:UpdateRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:DeleteRole",
+        "iam:GetRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole",
+        "iam:PutRolePermissionsBoundary",
+        "iam:DeleteRolePermissionsBoundary",
+        "iam:ListRoleTags"
+      ],
+      "Resource": "arn:aws:iam::*:role/balkanid-agents/*"
+    },
+    {
+      "Sid": "BoundaryAndGrantPolicies",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:ListPolicyVersions",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:TagPolicy",
+        "iam:UntagPolicy"
+      ],
+      "Resource": "arn:aws:iam::*:policy/balkanid-agents/*"
+    },
+    {
+      "Sid": "ListPoliciesForBoundaryLookup",
+      "Effect": "Allow",
+      "Action": [
+        "iam:ListPolicies"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamInstanceProfilesForRoleDelete",
+      "Effect": "Allow",
+      "Action": "iam:RemoveRoleFromInstanceProfile",
+      "Resource": "arn:aws:iam::*:instance-profile/*"
+    },
+    {
+      "Sid": "PassExecutionRolesToBedrock",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::*:role/balkanid-agents/*",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "iam:PassedToService": [
+            "bedrock-agentcore.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "CallerIdentity",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    }
+  ]
+}

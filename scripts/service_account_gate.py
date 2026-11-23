@@ -40,7 +40,6 @@ def build_input(agent: str, owner: str, integration_id: str, policies: list[str]
                 "provisioningOption": "app",
                 "integrationId": integration_id,
                 "sourceType": "aws service role",
-                "identityType": "service account",
                 "name": role_name_for(agent),
                 "scimPayload": scim_payload,
             }
